@@ -1,0 +1,622 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>CTI Pipeline - Malware Detection</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            padding: 20px;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+        }
+
+        .container {
+            max-width: 1200px;
+            width: 100%;
+            background: white;
+            border-radius: 20px;
+            box-shadow: 0 20px 60px rgba(0,0,0,0.3);
+            overflow: hidden;
+        }
+
+        .header {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            padding: 30px;
+            text-align: center;
+        }
+
+        .header h1 {
+            font-size: 2.5em;
+            margin-bottom: 10px;
+        }
+
+        .header p {
+            font-size: 1.1em;
+            opacity: 0.9;
+        }
+
+        .content {
+            padding: 40px;
+        }
+
+        .upload-section {
+            background: #f8f9fa;
+            border-radius: 15px;
+            padding: 30px;
+            margin-bottom: 30px;
+            border: 2px dashed #667eea;
+        }
+
+        .upload-section h2 {
+            color: #333;
+            margin-bottom: 20px;
+            font-size: 1.5em;
+        }
+
+        .file-input-wrapper {
+            position: relative;
+            margin-bottom: 20px;
+        }
+
+        .file-input-wrapper input[type="file"] {
+            display: none;
+        }
+
+        .file-input-label {
+            display: inline-block;
+            padding: 15px 30px;
+            background: #667eea;
+            color: white;
+            border-radius: 10px;
+            cursor: pointer;
+            font-size: 1em;
+            transition: all 0.3s;
+        }
+
+        .file-input-label:hover {
+            background: #764ba2;
+            transform: translateY(-2px);
+            box-shadow: 0 5px 15px rgba(102, 126, 234, 0.4);
+        }
+
+        .file-name {
+            display: inline-block;
+            margin-left: 15px;
+            color: #666;
+            font-style: italic;
+        }
+
+        .analyze-btn {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            border: none;
+            padding: 15px 40px;
+            font-size: 1.1em;
+            border-radius: 10px;
+            cursor: pointer;
+            transition: all 0.3s;
+            margin-top: 10px;
+        }
+
+        .analyze-btn:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 10px 25px rgba(102, 126, 234, 0.4);
+        }
+
+        .analyze-btn:disabled {
+            background: #ccc;
+            cursor: not-allowed;
+            transform: none;
+        }
+
+        .loading {
+            display: none;
+            text-align: center;
+            padding: 20px;
+        }
+
+        .spinner {
+            border: 4px solid #f3f3f3;
+            border-top: 4px solid #667eea;
+            border-radius: 50%;
+            width: 40px;
+            height: 40px;
+            animation: spin 1s linear infinite;
+            margin: 0 auto 10px;
+        }
+
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+
+        .results {
+            display: none;
+        }
+
+        .summary-cards {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+            gap: 20px;
+            margin-bottom: 30px;
+        }
+
+        .summary-card {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            padding: 25px;
+            border-radius: 15px;
+            text-align: center;
+            box-shadow: 0 5px 15px rgba(0,0,0,0.1);
+        }
+
+        .summary-card h3 {
+            font-size: 1em;
+            margin-bottom: 10px;
+            opacity: 0.9;
+        }
+
+        .summary-card .value {
+            font-size: 2.5em;
+            font-weight: bold;
+        }
+
+        .malicious-card {
+            background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%);
+        }
+
+        .threat-card {
+            background: linear-gradient(135deg, #ffa726 0%, #fb8c00 100%);
+        }
+
+        .benign-card {
+            background: linear-gradient(135deg, #4facfe 0%, #00f2fe 100%);
+        }
+
+        .results-table-wrapper {
+            background: #f8f9fa;
+            border-radius: 15px;
+            padding: 20px;
+            max-height: 500px;
+            overflow-y: auto;
+        }
+
+        .results-table {
+            width: 100%;
+            border-collapse: collapse;
+        }
+
+        .results-table th {
+            background: #667eea;
+            color: white;
+            padding: 15px;
+            text-align: left;
+            position: sticky;
+            top: 0;
+            z-index: 10;
+        }
+
+        .results-table td {
+            padding: 12px 15px;
+            border-bottom: 1px solid #ddd;
+        }
+
+        .results-table tr:hover {
+            background: #f0f0f0;
+        }
+
+        .badge {
+            display: inline-block;
+            padding: 5px 15px;
+            border-radius: 20px;
+            font-size: 0.9em;
+            font-weight: bold;
+        }
+
+        .badge-malicious {
+            background: #f5576c;
+            color: white;
+        }
+
+        .badge-threat {
+            background: #ff9800;
+            color: white;
+        }
+
+        .badge-benign {
+            background: #00f2fe;
+            color: white;
+        }
+
+        .confidence-bar {
+            height: 8px;
+            background: #e0e0e0;
+            border-radius: 5px;
+            overflow: hidden;
+            margin-top: 5px;
+        }
+
+        .confidence-fill {
+            height: 100%;
+            background: linear-gradient(90deg, #667eea 0%, #764ba2 100%);
+            transition: width 0.3s;
+        }
+
+        .error-message {
+            display: none;
+            background: #f5576c;
+            color: white;
+            padding: 15px;
+            border-radius: 10px;
+            margin-top: 20px;
+        }
+
+        .info-section {
+            background: #e3f2fd;
+            border-left: 4px solid #2196f3;
+            padding: 15px;
+            margin-bottom: 20px;
+            border-radius: 5px;
+        }
+
+        .info-section h3 {
+            color: #1976d2;
+            margin-bottom: 10px;
+        }
+
+        .info-section ul {
+            margin-left: 20px;
+            color: #555;
+        }
+
+        .info-section li {
+            margin: 5px 0;
+        }
+        .or-divider {
+            text-align: center;
+            margin: 15px 0;
+            color: #666;
+            font-weight: bold;
+        }
+
+        .label-block {
+            display: block;
+            margin-bottom: 8px;
+            color: #333;
+            font-weight: bold;
+        }
+
+        .event-textarea {
+            width: 100%;
+            padding: 12px;
+            border: 2px solid #667eea;
+            border-radius: 8px;
+            font-size: 0.95em;
+            min-height: 80px;
+            font-family: 'Courier New', monospace;
+            resize: vertical;
+        }
+
+        .path-input {
+            width: 100%;
+            padding: 12px;
+            border: 2px solid #667eea;
+            border-radius: 8px;
+            font-size: 1em;
+        }
+
+        .mb-20 { margin-bottom: 20px; }
+        .center-text { text-align: center; }
+        .hidden { display: none; }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>🛡️ CTI Pipeline</h1>
+            <p>Malware Detection System using MiniLM Transformer Model</p>
+        </div>
+
+        <div class="content">
+            <div class="info-section">
+                <h3>📋 CSV File Format</h3>
+                <ul>
+                    <li><strong>Required columns:</strong> event_id, image, parent_image, command_line, timestamp</li>
+                    <li><strong>Example:</strong> event_id="1", image="C:\Windows\System32\cmd.exe", command_line="cmd.exe /c whoami"</li>
+                    <li><strong>Model:</strong> MiniLM-L12-H384 (511MB) - Trained on Windows Sysmon events</li>
+                </ul>
+            </div>
+
+            <div class="upload-section">
+                <h2>Upload CSV File or Enter Data for Analysis</h2>
+                <div class="file-input-wrapper">
+                    <input type="file" id="fileInput" accept=".csv">
+                    <label for="fileInput" class="file-input-label">📁 Choose CSV File</label>
+                    <span class="file-name" id="fileName">No file selected</span>
+                </div>
+                <div class="or-divider">OR</div>
+                <div class="mb-20">
+                    <label class="label-block">Enter Single Event (CSV format):</label>
+                    <textarea 
+                        id="eventInput" 
+                        placeholder="Format: event_id,image,parent_image,command_line,timestamp&#10;Example: 11,C:\Windows\System32\rundll32.exe,C:\Windows\explorer.exe,&quot;rundll32.exe javascript:&quot;&quot;\..\mshtml,RunHTMLApplication&quot;&quot;&quot;,2025-11-26T10:37:00Z"
+                        class="event-textarea"
+                    ></textarea>
+                </div>
+                <div class="mb-20">
+                    <label class="label-block">Or Enter File Path:</label>
+                    <input 
+                        type="text" 
+                        id="filePathInput" 
+                        placeholder="sample_events.csv or C:\CTI_Pipeline\test_events_v2.csv"
+                        class="path-input"
+                    >
+                </div>
+                <button class="analyze-btn" id="analyzeBtn" disabled>🔍 Analyze for Malware</button>
+            </div>
+
+            <div class="loading" id="loading">
+                <div class="spinner"></div>
+                <p>Analyzing events with MiniLM model...</p>
+            </div>
+
+            <div class="error-message" id="errorMessage"></div>
+
+            <div class="results" id="results">
+                <div class="summary-cards">
+                    <div class="summary-card">
+                        <h3>Total Events</h3>
+                        <div class="value" id="totalEvents">0</div>
+                    </div>
+                    <div class="summary-card malicious-card">
+                        <h3>Malicious Events</h3>
+                        <div class="value" id="maliciousCount">0</div>
+                    </div>
+                    <div class="summary-card threat-card" id="threatCard">
+                        <h3>Threat Events</h3>
+                        <div class="value" id="threatCount">0</div>
+                    </div>
+                    <div class="summary-card benign-card">
+                        <h3>Benign Events</h3>
+                        <div class="value" id="benignCount">0</div>
+                    </div>
+                </div>
+
+                <div class="results-table-wrapper">
+                    <table class="results-table">
+                        <thead>
+                            <tr>
+                                <th>Row</th>
+                                <th>Event ID</th>
+                                <th>Process</th>
+                                <th>Command Line</th>
+                                <th>Prediction</th>
+                                <th>Confidence</th>
+                            </tr>
+                        </thead>
+                        <tbody id="resultsTableBody">
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        const fileInput = document.getElementById('fileInput');
+        const filePathInput = document.getElementById('filePathInput');
+        const eventInput = document.getElementById('eventInput');
+        const fileName = document.getElementById('fileName');
+        const analyzeBtn = document.getElementById('analyzeBtn');
+        const loading = document.getElementById('loading');
+        const results = document.getElementById('results');
+        const errorMessage = document.getElementById('errorMessage');
+        const resultsTableBody = document.getElementById('resultsTableBody');
+
+        // API endpoint
+        const API_URL = 'http://localhost:8000';
+
+        fileInput.addEventListener('change', (e) => {
+            if (e.target.files.length > 0) {
+                const file = e.target.files[0];
+                fileName.textContent = file.name;
+                filePathInput.value = '';
+                eventInput.value = '';
+                analyzeBtn.disabled = false;
+            } else {
+                fileName.textContent = 'No file selected';
+                checkAnalyzeEnabled();
+            }
+        });
+
+        filePathInput.addEventListener('input', (e) => {
+            if (e.target.value.trim()) {
+                fileInput.value = '';
+                fileName.textContent = 'No file selected';
+                eventInput.value = '';
+            }
+            checkAnalyzeEnabled();
+        });
+
+        eventInput.addEventListener('input', (e) => {
+            if (e.target.value.trim()) {
+                fileInput.value = '';
+                fileName.textContent = 'No file selected';
+                filePathInput.value = '';
+            }
+            checkAnalyzeEnabled();
+        });
+
+        function checkAnalyzeEnabled() {
+            analyzeBtn.disabled = !fileInput.files.length && !filePathInput.value.trim() && !eventInput.value.trim();
+        }
+
+        analyzeBtn.addEventListener('click', async () => {
+            // Check which input method is being used
+            const file = fileInput.files[0];
+            const filePath = filePathInput.value.trim();
+            const eventText = eventInput.value.trim();
+
+            if (!file && !filePath && !eventText) return;
+
+            // Hide previous results and errors
+            results.style.display = 'none';
+            errorMessage.style.display = 'none';
+            loading.style.display = 'block';
+            analyzeBtn.disabled = true;
+
+            try {
+                let data;
+
+                if (file) {
+                    // Upload file method
+                    const formData = new FormData();
+                    formData.append('file', file);
+
+                    const response = await fetch(`${API_URL}/predict/batch`, {
+                        method: 'POST',
+                        body: formData
+                    });
+
+                    if (!response.ok) {
+                        const error = await response.json();
+                        throw new Error(error.detail || 'Analysis failed');
+                    }
+
+                    data = await response.json();
+                } else if (filePath) {
+                    // File path method
+                    const response = await fetch(`${API_URL}/predict/batch-path`, {
+                        method: 'POST',
+                        headers: {
+                            'Content-Type': 'application/json'
+                        },
+                        body: JSON.stringify({ file_path: filePath })
+                    });
+
+                    if (!response.ok) {
+                        const error = await response.json();
+                        throw new Error(error.detail || 'Analysis failed');
+                    }
+
+                    data = await response.json();
+                } else if (eventText) {
+                    // Single event text method
+                    const response = await fetch(`${API_URL}/predict/event-text`, {
+                        method: 'POST',
+                        headers: {
+                            'Content-Type': 'application/json'
+                        },
+                        body: JSON.stringify({ event_text: eventText })
+                    });
+
+                    if (!response.ok) {
+                        const error = await response.json();
+                        throw new Error(error.detail || 'Analysis failed');
+                    }
+
+                    data = await response.json();
+                }
+
+                // Display results
+                displayResults(data);
+                results.style.display = 'block';
+
+            } catch (error) {
+                errorMessage.textContent = `Error: ${error.message}`;
+                errorMessage.style.display = 'block';
+                console.error('Analysis error:', error);
+            } finally {
+                loading.style.display = 'none';
+                analyzeBtn.disabled = false;
+            }
+        });
+
+        function displayResults(data) {
+            // Update summary cards
+            document.getElementById('totalEvents').textContent = data.total_events;
+            document.getElementById('maliciousCount').textContent = data.malicious_count;
+            document.getElementById('threatCount').textContent = data.threat_count || 0;
+            document.getElementById('benignCount').textContent = data.benign_count;
+
+            // Always show threat card in the UI
+            const threatCard = document.getElementById('threatCard');
+            threatCard.style.display = 'block';
+
+            // Clear table
+            resultsTableBody.innerHTML = '';
+
+            // Populate table
+            data.results.forEach(result => {
+                const row = document.createElement('tr');
+                
+                const prediction = result.prediction.toLowerCase();
+                let badgeClass;
+                if (prediction === 'malicious') {
+                    badgeClass = 'badge-malicious';
+                } else if (prediction === 'threat') {
+                    badgeClass = 'badge-threat';
+                } else {
+                    badgeClass = 'badge-benign';
+                }
+                const confidencePercent = (result.confidence * 100).toFixed(1);
+
+                // Extract just the executable name from full path
+                const processName = result.image.split('\\').pop() || result.image;
+
+                row.innerHTML = `
+                    <td>${result.row_index + 1}</td>
+                    <td>${result.event_id}</td>
+                    <td title="${result.image}">${processName}</td>
+                    <td title="${result.command_line}">${truncate(result.command_line, 50)}</td>
+                    <td><span class="badge ${badgeClass}">${result.prediction.toUpperCase()}</span></td>
+                    <td>
+                        ${confidencePercent}%
+                        <div class="confidence-bar">
+                            <div class="confidence-fill" style="width: ${confidencePercent}%"></div>
+                        </div>
+                    </td>
+                `;
+
+                resultsTableBody.appendChild(row);
+            });
+        }
+
+        function truncate(str, maxLength) {
+            if (str.length <= maxLength) return str;
+            return str.substring(0, maxLength) + '...';
+        }
+
+        // Check API health on load
+        async function checkAPIHealth() {
+            try {
+                const response = await fetch(`${API_URL}/health`);
+                if (response.ok) {
+                    console.log('✓ API is healthy');
+                } else {
+                    throw new Error('API health check failed');
+                }
+            } catch (error) {
+                errorMessage.textContent = '⚠️ Cannot connect to API server. Please ensure the backend is running on http://localhost:8000';
+                errorMessage.style.display = 'block';
+                console.error('API health check failed:', error);
+            }
+        }
+
+        // Check health on page load
+        checkAPIHealth();
+    </script>
+</body>
+</html>
